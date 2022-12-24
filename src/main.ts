@@ -1,4 +1,12 @@
-import { ErrorMapper } from "utils/ErrorMapper";
+import {
+  Console
+} from "console";
+import {
+  harvesterLogic
+} from "harvester";
+import {
+  ErrorMapper
+} from "utils/ErrorMapper";
 
 declare global {
   /*
@@ -16,7 +24,7 @@ declare global {
   }
 
   interface CreepMemory {
-    role: string;
+    role ? : string;
     room: string;
     working: boolean;
   }
@@ -29,12 +37,68 @@ declare global {
   }
 }
 
-// When compiling TS to JS and bundling with rollup, the line numbers and file names in error messages change
-// This utility uses source maps to get the line numbers and file names of the original, TS source code
-export const loop = ErrorMapper.wrapLoop(() => {
-  console.log(`Current game tick is ${Game.time}`);
+function randomname(): string {
+  var names: string[] = ["Michael", "Dwight", "Jim", "Pam", "Ryan", "Andy", "Robert", "Kelly", "Stanley", "Kevin", "Meredith", "Angela", "Oscar", "Phyllis", "Toby", "Creed", "Darryl", "Roy", "Erin", "Gabe", "Clark", "Pete", "David", "Deangelo", "Jo", "Josh", "Charles", "Ed", "Dan", "Craig", "Troy", "Karen", "Danny", "A.J.", "Ben", "Todd", "Cathy", "Hunter", "Rolando", "Stephanie", "Jordan", "Ronni", "Lonny", "Madge", "Glenn", "Jerry", "Phillip", "Michael", "Matt", "Hidetoshi", "Gary", "Val", "Nate", "Gideon", "Bruce", "Frank", "Louanne", "Devon", "Kendall", "Sadiq", "Nick", "Tony", "Martin", "Hannah", "Hank", "Billy", "Leo", "Brenda", "Vikram", "Al", "Elizabeth", "Fern", "Brandon", "Justin", "Megan", "Deborah", "Tom", "Brian"]
+  const randomIndex = Math.floor(Math.random() * names.length);
+  return names[randomIndex] + Math.random();
+}
+var spawnname = "Spawn1"
+var creepsalive: number = 0
 
-  // Automatically delete memory of missing creeps
+class population {
+  constructor(role:string) {
+    this.role = role
+  }
+  role:string
+  current(){
+    var count:number = 0
+    for (const name in Game.creeps) {
+      var creep = Game.creeps[name]
+      if(creep.memory.role == this.role) {
+        count++
+      }
+    }
+    return count
+  }
+}
+
+// TODO make creep counts dynamic
+const harvesterWanted:number = 100
+
+export const loop = ErrorMapper.wrapLoop(() => {
+  creepsalive = Object.keys(Game.creeps).length
+  if (Game.time % 5 == 0) {
+    console.log(`Current game tick is ${Game.time}, creeps alive: ${creepsalive}`)
+  }
+
+  var harvesterPop:population = new population('harvester')
+  const harvesters:number = harvesterPop.current();
+
+  for (const name in Game.creeps) {
+    var creep = Game.creeps[name]
+    switch (creep.memory.role) {
+      case 'harvester':
+        harvesterLogic(creep)
+        break
+      default:
+        harvesterLogic(creep)
+        console.log('Creep without a role')
+    }
+  }
+
+  const spawn = Game.spawns[spawnname]
+  if (harvesters < harvesterWanted) {
+    var name: string = randomname()
+    // TODO fix this to work with all roles
+    if (spawn.createCreep([MOVE, CARRY, WORK], name, {
+        role: 'harvester',
+        room: spawn.room.name,
+        working: true
+      }) == OK) {
+      console.log(`Spawning a new creep with the name ${name}`)
+    }
+  }
+
   for (const name in Memory.creeps) {
     if (!(name in Game.creeps)) {
       delete Memory.creeps[name];
