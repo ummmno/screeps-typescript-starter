@@ -14,7 +14,7 @@ function tryEnergyTransfer(creep: Creep) {
       s.structureType == STRUCTURE_TOWER ||
       s.structureType == STRUCTURE_STORAGE) &&
       s.store[RESOURCE_ENERGY] < s.store.getCapacity(RESOURCE_ENERGY)
-  })! // TODO Make it not crash lol
+  }) ?? creep.pos.findClosestByPath(FIND_MY_SPAWNS)!
   if (creep.transfer(structure, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
     creep.moveTo(structure)
   }
