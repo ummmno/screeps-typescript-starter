@@ -1,17 +1,14 @@
-import {
-  tryRepair
-} from "repairer";
-import { tryUpgrade } from "upgrader";
+export function tryRepair(creep: Creep) {
+  const targets = creep.room.find(FIND_STRUCTURES, {
+    filter: object => object.hits < object.hitsMax
+  });
 
-function tryBuild(creep: Creep) {
-  // TODO make it build procedurally
-  const target = creep.pos.findClosestByRange(FIND_CONSTRUCTION_SITES);
-  if (target) {
-    if (creep.build(target) == ERR_NOT_IN_RANGE) {
-      creep.moveTo(target);
+  targets.sort((a, b) => a.hits - b.hits);
+
+  if (targets.length > 0) {
+    if (creep.repair(targets[0]) == ERR_NOT_IN_RANGE) {
+      creep.moveTo(targets[0]);
     }
-  } else {
-    tryUpgrade(creep)
   }
 }
 
@@ -36,17 +33,17 @@ function tryHarvest(creep: Creep) {
   }
 }
 
-export function builderLogic(creep: Creep, room
-  : Room) {
+export function repairerLogic(creep: Creep, room:Room) {
   if (creep.store[RESOURCE_ENERGY] == creep.store.getCapacity()) {
     creep.memory.working = true
   }
   if (creep.memory.working) {
-    tryBuild(creep);
+    tryRepair(creep);
   }
-  if (!creep.memory.working && room.energyAvailable - 0.7 * room.energyAvailable > room.energyCapacityAvailable) {
+  if (!creep.memory.working && room.energyAvailable - 0.7*room.energyAvailable > room.energyCapacityAvailable) {
     getEnergy(creep)
-  } else if (!creep.memory.working) {
+  }
+  else if(!creep.memory.working){
     tryHarvest(creep)
   }
   if (creep.store[RESOURCE_ENERGY] == 0) {

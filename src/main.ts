@@ -1,4 +1,6 @@
-import { builderLogic } from "builder";
+import {
+  builderLogic
+} from "builder";
 import {
   Console
 } from "console";
@@ -8,6 +10,12 @@ import {
 import {
   basename
 } from "path";
+import {
+  repairerLogic
+} from "repairer";
+import {
+  upgraderLogic
+} from "upgrader";
 import {
   ErrorMapper
 } from "utils/ErrorMapper";
@@ -44,7 +52,7 @@ declare global {
 function randomname(): string {
   var names: string[] = ["Michael", "Dwight", "Jim", "Pam", "Ryan", "Andy", "Robert", "Kelly", "Stanley", "Kevin", "Meredith", "Angela", "Oscar", "Phyllis", "Toby", "Creed", "Darryl", "Roy", "Erin", "Gabe", "Clark", "Pete", "David", "Deangelo", "Jo", "Josh", "Charles", "Ed", "Dan", "Craig", "Troy", "Karen", "Danny", "A.J.", "Ben", "Todd", "Cathy", "Hunter", "Rolando", "Stephanie", "Jordan", "Ronni", "Lonny", "Madge", "Glenn", "Jerry", "Phillip", "Michael", "Matt", "Hidetoshi", "Gary", "Val", "Nate", "Gideon", "Bruce", "Frank", "Louanne", "Devon", "Kendall", "Sadiq", "Nick", "Tony", "Martin", "Hannah", "Hank", "Billy", "Leo", "Brenda", "Vikram", "Al", "Elizabeth", "Fern", "Brandon", "Justin", "Megan", "Deborah", "Tom", "Brian"]
   const randomIndex = Math.floor(Math.random() * names.length);
-  return names[randomIndex] + Math.random();
+  return names[randomIndex] + Math.random() * 10;
 }
 var spawnname = "Spawn1"
 var creepsalive: number = 0
@@ -70,7 +78,9 @@ function makeBody(role: string, energy: number) {
   energy = energy
   const BODY: Record < string, Array < number >> = {
     "harvester": [1, 1, 1, 0, 0, 0, 0, 0],
+    "upgrader": [1, 1, 1, 0, 0, 0, 0, 0],
     "builder": [1, 1, 1, 0, 0, 0, 0, 0],
+    "repairer": [1, 1, 1, 0, 0, 0, 0, 0],
     "miner": [1, 1, 0, 0, 0, 0, 0, 0]
   }
   let finalbody: BodyPartConstant[] = []
@@ -79,17 +89,17 @@ function makeBody(role: string, energy: number) {
 
   let i = 0
   while (energy > 0) {
-    if (!body[i%8]) {
+    if (!body[i % 8]) {
       i++
       continue
     }
 
     switch (i % 8) {
-      case 0:
+      case 1: // TODO CHANGE BACK
         finalbody.push(MOVE)
         energy -= BODYPART_COST[MOVE]
         break
-      case 1:
+      case 0: // !!!!!!!!!! !!!!!!!!!!!
         finalbody.push(WORK)
         energy -= BODYPART_COST[WORK]
         break
@@ -117,7 +127,7 @@ function makeBody(role: string, energy: number) {
         finalbody.push(CLAIM)
         energy -= BODYPART_COST[CLAIM]
     }
-    if(energy < 0){
+    if (energy < 0) {
       finalbody.pop()
     }
     i++
@@ -125,10 +135,10 @@ function makeBody(role: string, energy: number) {
   return finalbody
 }
 
-function spawnCreep(spawn:StructureSpawn, role:string, energy:number, working:boolean, container?:string){
+function spawnCreep(spawn: StructureSpawn, role: string, energy: number, working: boolean, container ? : string) {
   const name: string = randomname()
   const body = makeBody(role, energy)
-    // TODO fix this to work with all roles
+  // TODO fix this to work with all roles
   if (spawn.createCreep(body, name, {
       role: role,
       room: spawn.room.name,
@@ -140,7 +150,9 @@ function spawnCreep(spawn:StructureSpawn, role:string, energy:number, working:bo
 
 // TODO make creep counts dynamic
 const harvesterWanted: number = 3
-const buildersWanted: number = 1
+const upgradersWanted: number = 3
+const buildersWanted: number = 3
+const repairersWanted: number = 2
 
 export const loop = ErrorMapper.wrapLoop(() => {
   creepsalive = Object.keys(Game.creeps).length
@@ -150,8 +162,15 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   var harvesterPop: population = new population('harvester')
   const harvesters: number = harvesterPop.current();
+  var upgraderPop: population = new population('upgrader')
+  const upgrader: number = upgraderPop.current();
   var builderPop: population = new population('builder')
   const builders: number = builderPop.current();
+  var repairerPop: population = new population('repairer')
+  const repairers: number = repairerPop.current();
+
+  const spawn = Game.spawns[spawnname]
+  const room = spawn.room
 
   for (const name in Game.creeps) {
     var creep = Game.creeps[name]
@@ -160,7 +179,13 @@ export const loop = ErrorMapper.wrapLoop(() => {
         harvesterLogic(creep)
         break
       case 'builder':
-        builderLogic(creep)
+        builderLogic(creep, room)
+        break
+      case 'upgrader':
+        upgraderLogic(creep, room)
+        break
+      case 'repairer':
+        repairerLogic(creep, room)
         break
       default:
         harvesterLogic(creep)
@@ -168,16 +193,17 @@ export const loop = ErrorMapper.wrapLoop(() => {
     }
   }
 
-  const spawn = Game.spawns[spawnname]
-  const room = spawn.room
-  if (harvesters < harvesterWanted && room.energyAvailable > 260) {
-    spawnCreep(spawn, 'harvester', room.energyAvailable, true)
-  }
-  else if(builders < buildersWanted && room.energyAvailable > 260) {
-    spawnCreep(spawn, 'builder', room.energyAvailable, false)
-  }
-  else if(builders < buildersWanted && room.energyAvailable > 260) {
-    spawnCreep(spawn, 'builder', room.energyAvailable, false)
+  const energyrequired: number = room.energyCapacityAvailable - 100
+  if (room.energyAvailable >= energyrequired) {
+    if (harvesters < harvesterWanted) {
+      spawnCreep(spawn, 'harvester', room.energyAvailable, true)
+    } else if (upgrader < upgradersWanted) {
+      spawnCreep(spawn, 'upgrader', room.energyAvailable, false)
+    } else if (builders < buildersWanted) {
+      spawnCreep(spawn, 'builder', room.energyAvailable, false)
+    } else if (repairers < repairersWanted) {
+      spawnCreep(spawn, 'repairer', room.energyAvailable, false)
+    }
   }
 
   for (const name in Memory.creeps) {
