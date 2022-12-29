@@ -10,6 +10,8 @@ function tryMine(creep: Creep) {
   }
 }
 
+// TODO need a lorry and something to keep containers alive if im going to use miners
+
 export function harvesterLogic(creep: Creep) {
   if (creep.memory.working) {
     tryHarvest(creep);
