@@ -9,10 +9,16 @@ function tryRoad(creep: Creep) {
     }
   })[0]
 
-  randomcreep.pos.createConstructionSite(STRUCTURE_ROAD)
+  if(randomcreep.pos.createConstructionSite(STRUCTURE_ROAD) == OK){
+
+  }else{
+    tryUpgrade(creep)
+  }
+
+  // TODO make some sort of a heatmap ideally
 }
 
-function tryBuild(creep: Creep) {
+export function tryBuild(creep: Creep) {
   // TODO make it build procedurally
   const target = creep.pos.findClosestByRange(FIND_CONSTRUCTION_SITES);
   if (target) {
@@ -29,16 +35,15 @@ function getEnergy(creep: Creep) {
     creep.pos.findClosestByPath(FIND_STRUCTURES, {
       filter: s =>
         (s.structureType == STRUCTURE_CONTAINER ||
-          s.structureType == STRUCTURE_SPAWN ||
           s.structureType == STRUCTURE_STORAGE) &&
-        s.store[RESOURCE_ENERGY] > s.store.getCapacity(RESOURCE_ENERGY)
+        s.store[RESOURCE_ENERGY] > 200
     }) ?? creep.pos.findClosestByPath(FIND_MY_SPAWNS)!;
   if (creep.withdraw(storage, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
     creep.moveTo(storage);
   }
 }
 
-function tryHarvest(creep: Creep) {
+export function tryHarvest(creep: Creep) {
   const target = creep.pos.findClosestByRange(FIND_SOURCES_ACTIVE);
   if (target) {
     if (creep.harvest(target) == ERR_NOT_IN_RANGE) {

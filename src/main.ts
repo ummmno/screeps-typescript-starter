@@ -1,6 +1,7 @@
 import { builderLogic } from "builder";
 import { Console } from "console";
 import { harvesterLogic } from "harvester";
+import { minerLogic } from "miner";
 import { basename } from "path";
 import { repairerLogic } from "repairer";
 import { upgraderLogic } from "upgrader";
@@ -153,49 +154,61 @@ function makeBody(role: string, energy: number) {
   const body = BODY[role];
 
   let i = 0;
-  while (energy > 0) {
-    if (!body[i % 8]) {
-      i++;
-      continue;
-    }
+  if (role != "miner") {
+    while (energy > 0) {
+      if (!body[i % 8]) {
+        i++;
+        continue;
+      }
 
-    switch (i % 8) {
-      case 1: // TODO CHANGE BACK
-        finalbody.push(MOVE);
-        energy -= BODYPART_COST[MOVE];
-        break;
-      case 0: // !!!!!!!!!! !!!!!!!!!!!
-        finalbody.push(WORK);
-        energy -= BODYPART_COST[WORK];
-        break;
-      case 2:
-        finalbody.push(CARRY);
-        energy -= BODYPART_COST[CARRY];
-        break;
-      case 3:
-        finalbody.push(ATTACK);
-        energy -= BODYPART_COST[ATTACK];
-        break;
-      case 4:
-        finalbody.push(RANGED_ATTACK);
-        energy -= BODYPART_COST[RANGED_ATTACK];
-        break;
-      case 5:
-        finalbody.push(TOUGH);
-        energy -= BODYPART_COST[TOUGH];
-        break;
-      case 6:
-        finalbody.push(HEAL);
-        energy -= BODYPART_COST[HEAL];
-        break;
-      case 7:
-        finalbody.push(CLAIM);
-        energy -= BODYPART_COST[CLAIM];
+      switch (i % 8) {
+        case 1: // TODO CHANGE BACK
+          finalbody.push(MOVE);
+          energy -= BODYPART_COST[MOVE];
+          break;
+        case 0: // !!!!!!!!!! !!!!!!!!!!!
+          finalbody.push(WORK);
+          energy -= BODYPART_COST[WORK];
+          break;
+        case 2:
+          finalbody.push(CARRY);
+          energy -= BODYPART_COST[CARRY];
+          break;
+        case 3:
+          finalbody.push(ATTACK);
+          energy -= BODYPART_COST[ATTACK];
+          break;
+        case 4:
+          finalbody.push(RANGED_ATTACK);
+          energy -= BODYPART_COST[RANGED_ATTACK];
+          break;
+        case 5:
+          finalbody.push(TOUGH);
+          energy -= BODYPART_COST[TOUGH];
+          break;
+        case 6:
+          finalbody.push(HEAL);
+          energy -= BODYPART_COST[HEAL];
+          break;
+        case 7:
+          finalbody.push(CLAIM);
+          energy -= BODYPART_COST[CLAIM];
+      }
+      if (energy < 0) {
+        finalbody.pop();
+      }
+      i++;
+    }
+  } else if (role == "miner") {
+    finalbody.push(MOVE);
+    energy -= BODYPART_COST[MOVE];
+    while (energy > 0) {
+      finalbody.push(WORK);
+      energy -= BODYPART_COST[WORK];
     }
     if (energy < 0) {
       finalbody.pop();
     }
-    i++;
   }
   return finalbody;
 }
@@ -203,7 +216,6 @@ function makeBody(role: string, energy: number) {
 function spawnCreep(spawn: StructureSpawn, role: string, energy: number, working: boolean, container?: string) {
   const name: string = randomname();
   const body = makeBody(role, energy);
-  // TODO fix this to work with all roles
   if (
     spawn.createCreep(body, name, {
       role: role,
@@ -216,18 +228,19 @@ function spawnCreep(spawn: StructureSpawn, role: string, energy: number, working
   }
 }
 
-
-
 // TODO make creep counts dynamic
 const harvesterWanted: number = 3;
 const upgradersWanted: number = 3;
 const buildersWanted: number = 3;
 const repairersWanted: number = 2;
+const minersWanted: number = 1;
+
+const totalcreepswanted = harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + minersWanted;
 
 export const loop = ErrorMapper.wrapLoop(() => {
   creepsalive = Object.keys(Game.creeps).length;
   if (Game.time % 5 == 0) {
-    console.log(`Current game tick is ${Game.time}, creeps alive: ${creepsalive}`);
+    console.log(`Current game tick is ${Game.time}, creeps alive: ${creepsalive}/${totalcreepswanted}`);
   }
 
   var harvesterPop: population = new population("harvester");
@@ -238,6 +251,8 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const builders: number = builderPop.current();
   var repairerPop: population = new population("repairer");
   const repairers: number = repairerPop.current();
+  var minerPop: population = new population("miner");
+  const miners: number = minerPop.current();
 
   const spawn = Game.spawns[spawnname];
   const room = spawn.room;
@@ -257,15 +272,18 @@ export const loop = ErrorMapper.wrapLoop(() => {
       case "repairer":
         repairerLogic(creep, room);
         break;
+      case "miner":
+        minerLogic(creep);
+        break;
       default:
-        harvesterLogic(creep);
+        //harvesterLogic(creep);
         console.log("Creep without a role");
     }
   }
 
   let energyrequired: number = room.energyCapacityAvailable - 100;
-  if (energyrequired > 1000){
-    energyrequired = 1000
+  if (energyrequired > 1000) {
+    energyrequired = 1000;
   }
   if (harvesters < 2 && room.energyAvailable >= 200) {
     spawnCreep(spawn, "harvester", room.energyAvailable, true);
@@ -278,6 +296,8 @@ export const loop = ErrorMapper.wrapLoop(() => {
       spawnCreep(spawn, "builder", room.energyAvailable, false);
     } else if (repairers < repairersWanted) {
       spawnCreep(spawn, "repairer", room.energyAvailable, false);
+    } else if (miners < minersWanted) {
+      spawnCreep(spawn, "miner", room.energyAvailable, false);
     }
   }
 
