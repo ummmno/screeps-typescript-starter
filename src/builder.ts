@@ -1,7 +1,16 @@
-import {
-  tryRepair
-} from "repairer";
+import { random } from "lodash";
+import { tryRepair } from "repairer";
 import { tryUpgrade } from "upgrader";
+
+function tryRoad(creep: Creep) {
+  const randomcreep: Creep = creep.room.find(FIND_MY_CREEPS, {
+    filter: function (object) {
+      return object.memory.role == "harvester" || object.memory.role == "upgrader";
+    }
+  })[0]
+
+  randomcreep.pos.createConstructionSite(STRUCTURE_ROAD)
+}
 
 function tryBuild(creep: Creep) {
   // TODO make it build procedurally
@@ -11,20 +20,22 @@ function tryBuild(creep: Creep) {
       creep.moveTo(target);
     }
   } else {
-    tryUpgrade(creep)
+    tryRoad(creep);
   }
 }
 
 function getEnergy(creep: Creep) {
-  var storage: Structure = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-      filter: (s) => (s.structureType == STRUCTURE_CONTAINER ||
+  var storage: Structure =
+    creep.pos.findClosestByPath(FIND_STRUCTURES, {
+      filter: s =>
+        (s.structureType == STRUCTURE_CONTAINER ||
           s.structureType == STRUCTURE_SPAWN ||
           s.structureType == STRUCTURE_STORAGE) &&
         s.store[RESOURCE_ENERGY] > s.store.getCapacity(RESOURCE_ENERGY)
-    }) ?? creep.pos.findClosestByPath(FIND_MY_SPAWNS) !
-    if (creep.withdraw(storage, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-      creep.moveTo(storage);
-    }
+    }) ?? creep.pos.findClosestByPath(FIND_MY_SPAWNS)!;
+  if (creep.withdraw(storage, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
+    creep.moveTo(storage);
+  }
 }
 
 function tryHarvest(creep: Creep) {
@@ -36,20 +47,19 @@ function tryHarvest(creep: Creep) {
   }
 }
 
-export function builderLogic(creep: Creep, room
-  : Room) {
+export function builderLogic(creep: Creep, room: Room) {
   if (creep.store[RESOURCE_ENERGY] == creep.store.getCapacity()) {
-    creep.memory.working = true
+    creep.memory.working = true;
   }
   if (creep.memory.working) {
     tryBuild(creep);
   }
   if (!creep.memory.working && room.energyAvailable - 0.7 * room.energyAvailable > room.energyCapacityAvailable) {
-    getEnergy(creep)
+    getEnergy(creep);
   } else if (!creep.memory.working) {
-    tryHarvest(creep)
+    tryHarvest(creep);
   }
   if (creep.store[RESOURCE_ENERGY] == 0) {
-    creep.memory.working = false
+    creep.memory.working = false;
   }
 }
