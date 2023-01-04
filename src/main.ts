@@ -1,9 +1,11 @@
+import { attackerLogic } from "attacker";
 import { builderLogic } from "builder";
 import { Console } from "console";
 import { harvesterLogic } from "harvester";
 import { minerLogic } from "miner";
 import { basename } from "path";
 import { repairerLogic } from "repairer";
+import { towerLogic } from "tower";
 import { upgraderLogic } from "upgrader";
 import { ErrorMapper } from "utils/ErrorMapper";
 
@@ -26,6 +28,8 @@ declare global {
     role?: string;
     room: string;
     working: boolean;
+    // TODO make it not be there always
+    roomtoattack?: Room;
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")
@@ -147,7 +151,8 @@ function makeBody(role: string, energy: number) {
     upgrader: [1, 1, 1, 0, 0, 0, 0, 0],
     builder: [1, 1, 1, 0, 0, 0, 0, 0],
     repairer: [1, 1, 1, 0, 0, 0, 0, 0],
-    miner: [1, 1, 0, 0, 0, 0, 0, 0]
+    miner: [1, 1, 0, 0, 0, 0, 0, 0],
+    attacker: [1, 0, 0, 1, 0, 0, 0, 0]
   };
   let finalbody: BodyPartConstant[] = [];
 
@@ -155,7 +160,7 @@ function makeBody(role: string, energy: number) {
 
   let i = 0;
   if (role != "miner") {
-    while (energy > 0) {
+    while (energy > 0 && i < 50) {
       if (!body[i % 8]) {
         i++;
         continue;
@@ -202,9 +207,10 @@ function makeBody(role: string, energy: number) {
   } else if (role == "miner") {
     finalbody.push(MOVE);
     energy -= BODYPART_COST[MOVE];
-    while (energy > 0) {
-      finalbody.push(WORK);
-      energy -= BODYPART_COST[WORK];
+    while (energy > 0  && i < 49) {
+      finalbody.push(WORK)
+      energy -= BODYPART_COST[WORK]
+      i++
     }
     if (energy < 0) {
       finalbody.pop();
@@ -229,13 +235,14 @@ function spawnCreep(spawn: StructureSpawn, role: string, energy: number, working
 }
 
 // TODO make creep counts dynamic
-const harvesterWanted: number = 3;
-const upgradersWanted: number = 3;
-const buildersWanted: number = 3;
-const repairersWanted: number = 2;
-const minersWanted: number = 1;
+const harvesterWanted: number = 5
+const upgradersWanted: number = 1
+const buildersWanted: number = 1
+const repairersWanted: number = 1
+const minersWanted: number = 1
+const attackersWanted: number = 0
 
-const totalcreepswanted = harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + minersWanted;
+const totalcreepswanted = harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + minersWanted + attackersWanted
 
 export const loop = ErrorMapper.wrapLoop(() => {
   creepsalive = Object.keys(Game.creeps).length;
@@ -253,6 +260,9 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const repairers: number = repairerPop.current();
   var minerPop: population = new population("miner");
   const miners: number = minerPop.current();
+  //var attackerPop: population = new population("attacker");
+  //const attackers: number = attackerPop.current();
+  const attackers = 0
 
   const spawn = Game.spawns[spawnname];
   const room = spawn.room;
@@ -275,18 +285,22 @@ export const loop = ErrorMapper.wrapLoop(() => {
       case "miner":
         minerLogic(creep);
         break;
+      case "attacker":
+        attackerLogic(creep);
+        break;
       default:
         //harvesterLogic(creep);
         console.log("Creep without a role");
     }
   }
 
-  let energyrequired: number = room.energyCapacityAvailable - 100;
-  if (energyrequired > 1000) {
-    energyrequired = 1000;
-  }
+  let towers:StructureTower[] = room.find(FIND_MY_STRUCTURES, {filter: (s) => s.structureType == STRUCTURE_TOWER})
+  towers.forEach(towerLogic)
+
+  let energyrequired: number = Math.min(room.energyCapacityAvailable - 100, 800)
+
   if (harvesters < 2 && room.energyAvailable >= 200) {
-    spawnCreep(spawn, "harvester", room.energyAvailable, true);
+    spawnCreep(spawn, "harvester", energyrequired, true);
   } else if (room.energyAvailable >= energyrequired) {
     if (harvesters < harvesterWanted) {
       spawnCreep(spawn, "harvester", room.energyAvailable, true);
@@ -298,6 +312,8 @@ export const loop = ErrorMapper.wrapLoop(() => {
       spawnCreep(spawn, "repairer", room.energyAvailable, false);
     } else if (miners < minersWanted) {
       spawnCreep(spawn, "miner", room.energyAvailable, false);
+    } else if (attackers < attackersWanted) {
+      spawnCreep(spawn, "attacker", room.energyAvailable, false)
     }
   }
 
@@ -306,4 +322,4 @@ export const loop = ErrorMapper.wrapLoop(() => {
       delete Memory.creeps[name];
     }
   }
-});
+})

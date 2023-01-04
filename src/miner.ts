@@ -6,7 +6,7 @@ function moveToCont(creep: Creep) {
   const source = creep.pos.findClosestByRange(FIND_SOURCES)!
 
   if (target) {
-    if (creep.harvest(source) == ERR_NOT_IN_RANGE) {
+    if (creep.harvest(source) != OK) {
       creep.moveTo(target)
     }else{
       creep.memory.working = true
