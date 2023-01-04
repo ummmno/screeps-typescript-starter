@@ -4,7 +4,11 @@ export function tryUpgrade(creep: Creep) {
   // TODO make it build procedurally
   const target = creep.pos.findClosestByRange(FIND_MY_STRUCTURES, {
     filter: (s) => (s.structureType == STRUCTURE_CONTROLLER)
-  })
+  })!
+
+  Game.map.visual.line(creep.pos, target.pos,
+    {color: '#ff0000', lineStyle: 'dashed'})
+
   if (target) {
     if (creep.transfer(target, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
       creep.moveTo(target)

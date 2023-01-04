@@ -240,7 +240,7 @@ const upgradersWanted: number = 1
 const buildersWanted: number = 1
 const repairersWanted: number = 1
 const minersWanted: number = 1
-const attackersWanted: number = 0
+const attackersWanted: number = 1
 
 const totalcreepswanted = harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + minersWanted + attackersWanted
 
@@ -260,9 +260,8 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const repairers: number = repairerPop.current();
   var minerPop: population = new population("miner");
   const miners: number = minerPop.current();
-  //var attackerPop: population = new population("attacker");
-  //const attackers: number = attackerPop.current();
-  const attackers = 0
+  var attackerPop: population = new population("attacker");
+  const attackers: number = attackerPop.current();
 
   const spawn = Game.spawns[spawnname];
   const room = spawn.room;
