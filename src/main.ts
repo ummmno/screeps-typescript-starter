@@ -2,6 +2,7 @@ import { attackerLogic } from "attacker";
 import { builderLogic } from "builder";
 import { Console } from "console";
 import { harvesterLogic } from "harvester";
+import { identity } from "lodash";
 import { minerLogic } from "miner";
 import { basename } from "path";
 import { repairerLogic } from "repairer";
@@ -30,6 +31,7 @@ declare global {
     working: boolean;
     // TODO make it not be there always
     roomtoattack?: Room;
+    container?: StructureContainer;
   }
 
   // Syntax for adding proprties to `global` (ex "global.log")
@@ -144,6 +146,25 @@ class population {
   }
 }
 
+class containerMem {
+  constructor(cont: StructureContainer) {
+    this.cont = cont;
+  }
+  cont: StructureContainer;
+  current() {
+    var count: number = 0;
+    for (const name in Game.creeps) {
+      var creep = Game.creeps[name];
+      if (creep.memory.container != undefined) {
+        if (creep.memory.container.id == this.cont.id) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+}
+
 function makeBody(role: string, energy: number) {
   energy = energy;
   const BODY: Record<string, Array<number>> = {
@@ -152,7 +173,7 @@ function makeBody(role: string, energy: number) {
     builder: [1, 1, 1, 0, 0, 0, 0, 0],
     repairer: [1, 1, 1, 0, 0, 0, 0, 0],
     miner: [1, 1, 0, 0, 0, 0, 0, 0],
-    attacker: [1, 0, 0, 1, 0, 0, 0, 0]
+    attacker: [0, 1, 0, 1, 0, 0, 0, 0]
   };
   let finalbody: BodyPartConstant[] = [];
 
@@ -207,10 +228,10 @@ function makeBody(role: string, energy: number) {
   } else if (role == "miner") {
     finalbody.push(MOVE);
     energy -= BODYPART_COST[MOVE];
-    while (energy > 0  && i < 49) {
-      finalbody.push(WORK)
-      energy -= BODYPART_COST[WORK]
-      i++
+    while (energy > 0 && i < 49) {
+      finalbody.push(WORK);
+      energy -= BODYPART_COST[WORK];
+      i++;
     }
     if (energy < 0) {
       finalbody.pop();
@@ -219,14 +240,21 @@ function makeBody(role: string, energy: number) {
   return finalbody;
 }
 
-function spawnCreep(spawn: StructureSpawn, role: string, energy: number, working: boolean, container?: string) {
+function spawnCreep(
+  spawn: StructureSpawn,
+  role: string,
+  energy: number,
+  working: boolean,
+  container?: StructureContainer
+) {
   const name: string = randomname();
   const body = makeBody(role, energy);
   if (
     spawn.createCreep(body, name, {
       role: role,
       room: spawn.room.name,
-      working: working
+      working: working,
+      container: container
     }) == OK
   ) {
     //so it only logs succesful spawns
@@ -235,14 +263,13 @@ function spawnCreep(spawn: StructureSpawn, role: string, energy: number, working
 }
 
 // TODO make creep counts dynamic
-const harvesterWanted: number = 5
-const upgradersWanted: number = 1
-const buildersWanted: number = 1
-const repairersWanted: number = 1
-const minersWanted: number = 1
-const attackersWanted: number = 1
+const harvesterWanted: number = 3;
+const upgradersWanted: number = 1;
+const buildersWanted: number = 1;
+const repairersWanted: number = 1;
+const attackersWanted: number = 1;
 
-const totalcreepswanted = harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + minersWanted + attackersWanted
+const totalcreepswanted = harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + attackersWanted;
 
 export const loop = ErrorMapper.wrapLoop(() => {
   creepsalive = Object.keys(Game.creeps).length;
@@ -258,8 +285,6 @@ export const loop = ErrorMapper.wrapLoop(() => {
   const builders: number = builderPop.current();
   var repairerPop: population = new population("repairer");
   const repairers: number = repairerPop.current();
-  var minerPop: population = new population("miner");
-  const miners: number = minerPop.current();
   var attackerPop: population = new population("attacker");
   const attackers: number = attackerPop.current();
 
@@ -293,13 +318,17 @@ export const loop = ErrorMapper.wrapLoop(() => {
     }
   }
 
-  let towers:StructureTower[] = room.find(FIND_MY_STRUCTURES, {filter: (s) => s.structureType == STRUCTURE_TOWER})
-  towers.forEach(towerLogic)
+  let towers: StructureTower[] = room.find(FIND_MY_STRUCTURES, { filter: s => s.structureType == STRUCTURE_TOWER });
+  towers.forEach(towerLogic);
 
-  let energyrequired: number = Math.min(room.energyCapacityAvailable - 100, 800)
+  let containers: StructureContainer[] = room.find(FIND_STRUCTURES, {
+    filter: s => s.structureType == STRUCTURE_CONTAINER
+  });
+
+  let energyrequired: number = Math.min(room.energyCapacityAvailable - 100, 800);
 
   if (harvesters < 2 && room.energyAvailable >= 200) {
-    spawnCreep(spawn, "harvester", energyrequired, true);
+    spawnCreep(spawn, "harvester", room.energyAvailable, true);
   } else if (room.energyAvailable >= energyrequired) {
     if (harvesters < harvesterWanted) {
       spawnCreep(spawn, "harvester", room.energyAvailable, true);
@@ -309,10 +338,17 @@ export const loop = ErrorMapper.wrapLoop(() => {
       spawnCreep(spawn, "builder", room.energyAvailable, false);
     } else if (repairers < repairersWanted) {
       spawnCreep(spawn, "repairer", room.energyAvailable, false);
-    } else if (miners < minersWanted) {
-      spawnCreep(spawn, "miner", room.energyAvailable, false);
     } else if (attackers < attackersWanted) {
-      spawnCreep(spawn, "attacker", room.energyAvailable, false)
+      spawnCreep(spawn, "attacker", room.energyAvailable, false);
+    } else {
+      containers.forEach((c: StructureContainer) => {
+        var containercreep: containerMem = new containerMem(c);
+        const contCreeps: number = containercreep.current();
+        if (contCreeps != 1) {
+          spawnCreep(spawn, "miner", room.energyAvailable, false, c)
+        }
+      }); // TODO give them more of a priority
+          // TODO dont store the whole conteiner
     }
   }
 
@@ -321,4 +357,4 @@ export const loop = ErrorMapper.wrapLoop(() => {
       delete Memory.creeps[name];
     }
   }
-})
+});

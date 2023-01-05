@@ -1,13 +1,17 @@
-function moveToCont(creep: Creep) {
-  const target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-    filter: i => i.structureType == STRUCTURE_CONTAINER // TODO add a filter
-  });
+import { object } from "lodash";
 
+function moveToCont(creep: Creep) {
+  const target = creep.memory.container
   const source = creep.pos.findClosestByRange(FIND_SOURCES)!
 
-  if (target) {
+  if (target != undefined) {
     if (creep.harvest(source) != OK) {
-      creep.moveTo(target)
+      let found = creep.room.find(FIND_STRUCTURES, {
+        filter: object => object.structureType == STRUCTURE_CONTAINER &&
+        object.id == target.id
+      })[0];
+
+      creep.moveTo(found)
     }else{
       creep.memory.working = true
     }
