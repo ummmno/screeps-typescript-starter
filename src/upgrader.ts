@@ -1,4 +1,5 @@
 import { tryBuild } from "builder";
+import { getEnergy } from "dansdl";
 
 export function tryUpgrade(creep: Creep) {
   // TODO make it build procedurally
@@ -15,26 +16,6 @@ export function tryUpgrade(creep: Creep) {
     }
   } else {
     tryBuild(creep)
-  }
-}
-
-function getEnergy(creep: Creep) {
-  var storage: Structure = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-      filter: (s) => (s.structureType == STRUCTURE_CONTAINER ||
-          s.structureType == STRUCTURE_STORAGE) &&
-        s.store[RESOURCE_ENERGY] > 200
-    }) ?? creep.pos.findClosestByPath(FIND_MY_SPAWNS) !
-    if (creep.withdraw(storage, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-      creep.moveTo(storage);
-    }
-}
-
-function tryHarvest(creep: Creep) {
-  const target = creep.pos.findClosestByRange(FIND_SOURCES_ACTIVE);
-  if (target) {
-    if (creep.harvest(target) == ERR_NOT_IN_RANGE) {
-      creep.moveTo(target);
-    }
   }
 }
 

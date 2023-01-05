@@ -1,11 +1,4 @@
-function tryHarvest(creep: Creep) {
-  const target = creep.pos.findClosestByRange(FIND_SOURCES_ACTIVE);
-  if (target) {
-    if (creep.harvest(target) == ERR_NOT_IN_RANGE) {
-      creep.moveTo(target);
-    }
-  }
-}
+import { getEnergy, tryHarvest } from "dansdl";
 
 function tryEnergyTransfer(creep: Creep) {
   var structure:Structure = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
@@ -25,7 +18,9 @@ export function harvesterLogic(creep: Creep) {
     creep.memory.working = false
   }
   if (creep.memory.working) {
-    tryHarvest(creep);
+    if(!tryHarvest(creep)){
+      getEnergy(creep)
+    }
   }
   if (!creep.memory.working) {
     tryEnergyTransfer(creep)
