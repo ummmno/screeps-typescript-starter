@@ -1,16 +1,14 @@
-import { object } from "lodash";
+import { isEqual, object } from "lodash";
 
 function moveToCont(creep: Creep) {
-  const target = creep.memory.container
-  const source = creep.pos.findClosestByRange(FIND_SOURCES)!
+  const target = creep.memory.container!
+  const found = creep.room.find(FIND_STRUCTURES, {
+    filter: object => object.structureType == STRUCTURE_CONTAINER &&
+    object.id == target.id
+  })[0];
 
   if (target != undefined) {
-    if (creep.harvest(source) != OK) {
-      let found = creep.room.find(FIND_STRUCTURES, {
-        filter: object => object.structureType == STRUCTURE_CONTAINER &&
-        object.id == target.id
-      })[0];
-
+    if (!creep.pos.isEqualTo(found.pos)) {
       creep.moveTo(found)
     }else{
       creep.memory.working = true
@@ -24,8 +22,6 @@ function tryMine(creep: Creep) {
     creep.harvest(target)
   }
 }
-
-// TODO need a lorry and something to keep containers alive if im going to use miners
 
 export function minerLogic(creep: Creep) {
   if (!creep.memory.working) {

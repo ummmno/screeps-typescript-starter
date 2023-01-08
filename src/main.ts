@@ -1,6 +1,7 @@
 import { attackerLogic } from "attacker";
 import { builderLogic } from "builder";
 import { Console } from "console";
+import { buildExtGrid, findFreeSpace, findStructure } from "dansdl";
 import { harvesterLogic } from "harvester";
 import { identity } from "lodash";
 import { minerLogic } from "miner";
@@ -188,11 +189,11 @@ function makeBody(role: string, energy: number) {
       }
 
       switch (i % 8) {
-        case 1: // TODO CHANGE BACK
+        case 0:
           finalbody.push(MOVE);
           energy -= BODYPART_COST[MOVE];
           break;
-        case 0: // !!!!!!!!!! !!!!!!!!!!!
+        case 1:
           finalbody.push(WORK);
           energy -= BODYPART_COST[WORK];
           break;
@@ -267,15 +268,10 @@ const harvesterWanted: number = 3;
 const upgradersWanted: number = 1;
 const buildersWanted: number = 1;
 const repairersWanted: number = 1;
-const attackersWanted: number = 1;
-
-const totalcreepswanted = harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + attackersWanted;
+const attackersWanted: number = 0;
 
 export const loop = ErrorMapper.wrapLoop(() => {
   creepsalive = Object.keys(Game.creeps).length;
-  if (Game.time % 5 == 0) {
-    console.log(`Current game tick is ${Game.time}, creeps alive: ${creepsalive}/${totalcreepswanted}`);
-  }
 
   var harvesterPop: population = new population("harvester");
   const harvesters: number = harvesterPop.current();
@@ -325,6 +321,19 @@ export const loop = ErrorMapper.wrapLoop(() => {
     filter: s => s.structureType == STRUCTURE_CONTAINER
   });
 
+  let extensions = findStructure(room, [STRUCTURE_EXTENSION]).length
+  let extensionspossible = 0
+  let lvl = room.controller?.level!
+  if(lvl < 3){
+    extensionspossible = 5*(lvl-1)
+  }else {
+    extensionspossible = 10*(lvl-2)
+  }
+
+  if(extensions < extensionspossible){
+    buildExtGrid(spawn, findFreeSpace(spawn))
+  }
+
   let energyrequired: number = Math.min(room.energyCapacityAvailable - 100, 800);
 
   if (harvesters < 2 && room.energyAvailable >= 200) {
@@ -345,11 +354,18 @@ export const loop = ErrorMapper.wrapLoop(() => {
         var containercreep: containerMem = new containerMem(c);
         const contCreeps: number = containercreep.current();
         if (contCreeps != 1) {
-          spawnCreep(spawn, "miner", room.energyAvailable, false, c)
+          spawnCreep(spawn, "miner", room.energyAvailable, false, c);
         }
       }); // TODO give them more of a priority
-          // TODO dont store the whole conteiner
+      // TODO dont store the whole conteiner
     }
+  }
+
+  const totalcreepswanted =
+    harvesterWanted + upgradersWanted + buildersWanted + repairersWanted + attackersWanted + containers.length;
+
+  if (Game.time % 5 == 0) {
+    console.log(`Current game tick is ${Game.time}, creeps alive: ${creepsalive}/${totalcreepswanted}`);
   }
 
   for (const name in Memory.creeps) {

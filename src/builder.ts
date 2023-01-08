@@ -38,7 +38,7 @@ export function builderLogic(creep: Creep, room: Room) {
   if (creep.memory.working) {
     tryBuild(creep);
   }
-  if (!creep.memory.working && room.energyAvailable - 0.7 * room.energyAvailable > room.energyCapacityAvailable) {
+  if (!creep.memory.working) {
     getEnergy(creep);
   } else if (!creep.memory.working) {
     tryHarvest(creep);
