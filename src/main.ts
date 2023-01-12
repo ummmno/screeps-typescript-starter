@@ -331,7 +331,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   }
 
   if(extensions < extensionspossible){
-    buildExtGrid(spawn, findFreeSpace(spawn))
+    //buildExtGrid(spawn, findFreeSpace(spawn))
   }
 
   let energyrequired: number = Math.min(room.energyCapacityAvailable - 100, 800);

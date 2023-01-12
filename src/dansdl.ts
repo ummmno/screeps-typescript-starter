@@ -1,5 +1,5 @@
 import { privateEncrypt } from "crypto";
-import { isNull } from "lodash";
+import { inRange, isNull } from "lodash";
 
 export function findStructure(room: Room, filter: StructureConstant[]) {
   return room.find(FIND_STRUCTURES, {
@@ -74,39 +74,90 @@ function outwardIterateSearchTiles(iterations: number, fn: (x: number, y: number
   }
 }
 
+export function tryPlaceRoad(x: number, y: number, room: Room) {
+  if (room.getTerrain().get(x, y) != TERRAIN_MASK_WALL) {
+    return OK == room.createConstructionSite(x, y, STRUCTURE_ROAD);
+    //new RoomVisual(room.name).circle(x, y, { fill: "#072af0" });
+  } else {
+    console.log(`Wall at ${x}, ${y}`);
+    return false;
+  }
+}
+
+function tryPlaceExtension(x: number, y: number, room: Room) {
+  if (room.getTerrain().get(x, y) != TERRAIN_MASK_WALL) {
+    return OK == room.createConstructionSite(x, y, STRUCTURE_EXTENSION);
+    //new RoomVisual(room.name).circle(x, y, { fill: "#e09119" });
+  } else {
+    console.log(`Wall at ${x}, ${y}`);
+    return false;
+  }
+}
+
+function placeExtOrRoad(x: number, y: number, room: Room) {
+  let isCont = (x: number, y: number) =>
+    room.lookAt(x, y).filter(s => {
+      if (
+        s.structure?.structureType == STRUCTURE_EXTENSION ||
+        s.constructionSite?.structureType == STRUCTURE_EXTENSION
+      ) {
+        return true;
+      }
+      return false;
+    }).length > 0;
+
+  if (isCont(x + 1, y) || isCont(x, y + 1) || isCont(x - 1, y) || isCont(x, y - 1)) {
+    return tryPlaceRoad(x, y, room);
+  } else {
+    return tryPlaceExtension(x, y, room);
+  }
+}
+
 export function buildExtGrid(spawn: StructureSpawn, buildPosVector: vector) {
   const room = spawn.room;
   var originX: number = spawn.pos.x;
   var originY: number = spawn.pos.y;
 
-  let changeVector: vector = {
-    x: (originX - buildPosVector.x) == 0 ? 0 : (originX - buildPosVector.x) / Math.abs(originX - buildPosVector.x),
-    y: (originY - buildPosVector.y) == 0 ? 0 : (originY - buildPosVector.y) / Math.abs(originY - buildPosVector.y)
-  };
-  if(isNull(changeVector.x)){
-    changeVector.x = 0
+  if (room.lookForAt(LOOK_CONSTRUCTION_SITES, buildPosVector.x, buildPosVector.y)) {
+    room.createConstructionSite(buildPosVector.x, buildPosVector.y, STRUCTURE_EXTENSION);
   }
-  if(isNull(changeVector.y)){
-    changeVector.y = 0
+
+  let changeVector: vector = {
+    x: originX - buildPosVector.x == 0 ? 0 : (originX - buildPosVector.x) / Math.abs(originX - buildPosVector.x),
+    y: originY - buildPosVector.y == 0 ? 0 : (originY - buildPosVector.y) / Math.abs(originY - buildPosVector.y)
+  };
+  if (isNull(changeVector.x)) {
+    changeVector.x = 0;
+  }
+  if (isNull(changeVector.y)) {
+    changeVector.y = 0;
   }
 
   outwardIterateSearchTiles(4, (x, y) => {
     switch (changeVector.x) {
       case -1:
-        new RoomVisual(room.name).circle(buildPosVector.x - y, buildPosVector.y + x, { fill: "#29ffc6" });
+        if(placeExtOrRoad(buildPosVector.x - y, buildPosVector.y + x, room)){
+          return
+        }
         break;
       case 0:
         switch (changeVector.y) {
           case 1:
-            new RoomVisual(room.name).circle(buildPosVector.x - x, buildPosVector.y - y, { fill: "#29ffc6" });
+            if(placeExtOrRoad(buildPosVector.x - x, buildPosVector.y - y, room)){
+              return
+            }
             break;
           case -1:
-            new RoomVisual(room.name).circle(buildPosVector.x - x, buildPosVector.y + y, { fill: "#29ffc6" });
+            if(placeExtOrRoad(buildPosVector.x - x, buildPosVector.y + y, room)){
+              return
+            }
             break;
         }
-        break
+        break;
       case 1:
-        new RoomVisual(room.name).circle(buildPosVector.x + y, buildPosVector.y - x, { fill: "#29ffc6" });
+        if(placeExtOrRoad(buildPosVector.x + y, buildPosVector.y - x, room)){
+          return
+        }
         break;
     }
   });
